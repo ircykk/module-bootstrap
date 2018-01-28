@@ -1,0 +1,4 @@
+/* Admin menu tab icon */
+#maintab-AdminBootstrap i::before {
+    content: '';
+}
