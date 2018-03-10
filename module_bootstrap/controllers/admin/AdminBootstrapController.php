@@ -30,7 +30,14 @@ class AdminBootstrapController extends ModuleAdminController
     public $bootstrap = true;
 
     /**
-     * AdminBootstrapController constructor.
+     * To show and manage positions on HelperList we need position identifier set
+     *
+     * @var string
+     */
+    protected $position_identifier = Bootstrap::PRIMARY_KEY;
+
+    /**
+     * AdminBootstrapController constructor
      *
      * @throws PrestaShopException
      */
@@ -39,6 +46,11 @@ class AdminBootstrapController extends ModuleAdminController
         $this->table = 'bootstrap';
         $this->className = 'Bootstrap';
         $this->lang = true;
+
+        /**
+         * Default order by postion on Objects list
+         */
+        $this->_defaultOrderBy = 'position';
 
         $this->fields_list = array(
             'id_bootstrap' => array(
@@ -56,6 +68,11 @@ class AdminBootstrapController extends ModuleAdminController
                 'class' => 'fixed-width-xs',
                 'align' => 'center',
                 'orderby' => false,
+            ),
+            'position' => array(
+                'title' => $this->l('Position'),
+                'position' => 'position',
+                'align' => 'center'
             ),
             'date_add' => array(
                 'title' => $this->l('Date add'),
@@ -86,7 +103,7 @@ class AdminBootstrapController extends ModuleAdminController
     }
 
     /**
-     * Init header.
+     * Init header
      *
      * @see    AdminController::initPageHeaderToolbar()
      * @return void
@@ -107,7 +124,7 @@ class AdminBootstrapController extends ModuleAdminController
     }
 
     /**
-     * Render add/edit form.
+     * Render add/edit form
      *
      * @see    AdminController::renderForm()
      * @return string|bool
@@ -146,5 +163,54 @@ class AdminBootstrapController extends ModuleAdminController
         );
 
         return parent::renderForm();
+    }
+
+    /**
+     * This method is needed to manage positions on Objects list by AJAX
+     * 
+     * To have this working we also need a Object::updatePosition() method
+     *
+     * @return void
+     */
+    public function ajaxProcessUpdatePositions()
+    {
+        $way = (int)Tools::getValue('way');
+        $id = (int)Tools::getValue('id');
+        $positions = Tools::getValue($this->table);
+
+        $new_positions = array();
+        foreach ($positions as $k => $v) {
+            if (count(explode('_', $v)) == 4) {
+                $new_positions[] = $v;
+            }
+        }
+
+        $class = $this->className;
+
+        foreach ($new_positions as $position => $value) {
+            $pos = explode('_', $value);
+
+            if (isset($pos[2]) && (int)$pos[2] === $id) {
+                if ($obg = new $class((int)$pos[2])) {
+                    if (isset($position) && $obg->updatePosition($way, $position)) {
+                        echo 'ok position '.(int)$position.' for object '.(int)$pos[2].'\r\n';
+                    } else {
+                        echo '{"hasError" : true, "errors" : "Can not update the '.(int)$id.' object to position '.(int)$position.' "}';
+                    }
+                } else {
+                    echo '{"hasError" : true, "errors" : "The ('.(int)$id.') object cannot be loaded."}';
+                }
+
+                break;
+            }
+        }
+    }
+
+    /**
+     * PS 1.7x translation method wrapper
+     */
+    protected function l($string, $class = null, $addslashes = false, $htmlentities = true)
+    {
+        return Translate::getAdminTranslation($string, $class, $addslashes, $htmlentities);
     }
 }

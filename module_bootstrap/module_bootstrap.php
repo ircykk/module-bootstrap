@@ -88,6 +88,7 @@ class Module_Bootstrap extends Module
         $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'bootstrap` (
             `id_bootstrap` int(10) NOT NULL AUTO_INCREMENT,
             `active` int(1),
+            `position` int(10) default 0,
             `date_add` datetime,
             `date_upd` datetime,
             PRIMARY KEY  (`id_bootstrap`)
@@ -111,12 +112,15 @@ class Module_Bootstrap extends Module
         /**
          * Add admin tab.
          *
-         * Id 0 = root (see Administration > Tabs)
+         * Id 0 = Root: PS 1.6
+         * Id 45 = Modules : PS 1.7
+         * 
+         * @see Administration > Tabs
          */
         $this->installModuleTab(
             'AdminBootstrap',
             array((int)Configuration::get('PS_LANG_DEFAULT') => 'Bootstrap'),
-            0,
+            (version_compare(_PS_VERSION_, '1.7') ? 43 : 0),
             1
         );
 
