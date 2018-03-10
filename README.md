@@ -33,9 +33,9 @@ Docker will start 3 containers:
 - PrestaShop 1.7.3.0
 
 After Docker download and start containers will auto install PrestaShop.
-Admin panel: http://localhost:8080/admin123
-E-mail: demo@prestashop.com
-Password: "12345678"
+Admin panel: http://localhost:8080/admin123 
+E-mail: demo@prestashop.com 
+Password: "12345678" 
 
 Directory `/module_bootstrap` is mapped to `/var/www/html/modules/module_bootstrap` in PrestaShop container.
 
