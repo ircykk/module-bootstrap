@@ -34,8 +34,14 @@ class Bootstrap extends ObjectModel
     public $text;
     public $active = 1; // Default active
     public $position = 0; // Default 0
+    public $color = '#ffffff'; // Default white
+    public $conf_checkbox;
+    public $conf_select;
+    public $date_custom;
     public $date_add;
     public $date_upd;
+
+    public $groupBox;
 
     /**
      * Object definition.
@@ -57,7 +63,6 @@ class Bootstrap extends ObjectModel
                 'type' => self::TYPE_HTML,
                 'lang' => true,
                 'validate' => 'isCleanHtml',
-                'required' => true,
             ),
             'active' => array(
                 'type' => self::TYPE_INT,
@@ -69,6 +74,22 @@ class Bootstrap extends ObjectModel
                 'validate' => 'isUnsignedInt',
                 'required' => true,
             ),
+            'color' => array(
+                'type' => self::TYPE_STRING,
+                'validate' => 'isGenericName',
+            ),
+            'conf_checkbox' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedInt',
+            ),
+            'conf_select' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedInt',
+            ),
+            'date_custom' => array(
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+            ),
             'date_add' => array(
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate'
@@ -79,6 +100,7 @@ class Bootstrap extends ObjectModel
             ),
         ),
     );
+
     /**
      * Override this method for actions on Object add
      *
@@ -93,7 +115,23 @@ class Bootstrap extends ObjectModel
             $this->position = $this->getHigherPosition() + 1;
         }
 
+        $this->cleanGroups();
+        $this->addGroups($this->groupBox);
+
         return parent::add($autoDate, $nullValues);
+    }
+
+    /**
+     * @see ObjectModel::update()
+     */
+    public function update($nullValues = false)
+    {
+        $ret = parent::update($nullValues);
+
+        $this->cleanGroups();
+        $this->addGroups($this->groupBox);
+
+        return $ret;
     }
 
     /**
@@ -103,11 +141,13 @@ class Bootstrap extends ObjectModel
      */
     public function delete()
     {
+        $this->cleanGroups();
+
         $res = parent::delete();
 
         /**
          * Clean positions on Object delete
-         * 
+         *
          * Important : after Object delete
          */
         $this->cleanPositions();
@@ -120,14 +160,14 @@ class Bootstrap extends ObjectModel
     *
     * @return int $position Position
     */
-   public function getHigherPosition()
-   {
+    public function getHigherPosition()
+    {
         $sql = 'SELECT MAX(`position`)
         FROM `'._DB_PREFIX_.self::TABLE_NAME.'`';
         $position = DB::getInstance()->getValue($sql);
 
         return (is_numeric($position)) ? $position : -1;
-   }
+    }
 
     /**
      * Reorder positions after delete some Objects
@@ -191,10 +231,125 @@ class Bootstrap extends ObjectModel
 			'.($direction
                     ? '> '.(int) $moveItem['position'].' AND `position` <= '.(int) $position
                     : '< '.(int) $moveItem['position'].' AND `position` >= '.(int) $position)
-            ) && Db::getInstance()->execute(
+        )
+            && Db::getInstance()->execute(
                 'UPDATE `'._DB_PREFIX_.self::TABLE_NAME.'`
                 SET `position` = '.(int)$position.'
                 WHERE `'.self::PRIMARY_KEY.'`='.(int)$moveItem[self::PRIMARY_KEY]
             ));
+    }
+
+    /**
+     * Clean groups
+     *
+     * @return bool
+     */
+    public function cleanGroups()
+    {
+        return Db::getInstance()->delete(self::TABLE_NAME.'_group', self::PRIMARY_KEY.' = '.(int)$this->id);
+    }
+
+    /**
+     * Add groups
+     *
+     * @param $groups
+     * @throws Exception
+     */
+    public function addGroups($groups)
+    {
+        if (count($groups)) {
+            foreach ($groups as $group) {
+                if ($group !== false) {
+                    Db::getInstance()->insert(
+                        self::TABLE_NAME.'_group',
+                        array(self::PRIMARY_KEY => (int)$this->id, 'id_group' => (int)$group)
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Get groups
+     *
+     * @return array|null
+     * @throws Exception
+     */
+    public function getGroups()
+    {
+        $cacheId = self::TABLE_NAME.'::getGroups_'.(int)$this->id;
+        if (!Cache::isStored($cacheId)) {
+            $sql = new DbQuery();
+            $sql->select('id_group');
+            $sql->from(self::TABLE_NAME.'_group');
+            $sql->where(self::PRIMARY_KEY.' = '.(int)$this->id);
+            $result = Db::getInstance()->executeS($sql);
+            $groups = array();
+            foreach ($result as $group) {
+                $groups[] = $group['id_group'];
+            }
+            Cache::store($cacheId, $groups);
+            return $groups;
+        }
+        return Cache::retrieve($cacheId);
+    }
+
+    /**
+     * Install DB tables
+     *
+     * @return bool
+     */
+    public static function installDb()
+    {
+        $sql = array();
+
+        $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.self::TABLE_NAME.'` (
+            `'.self::PRIMARY_KEY.'` int(10) NOT NULL AUTO_INCREMENT,
+            `active` int(1),
+            `position` int(10) default 0,
+            `color` varchar(255),
+            `conf_checkbox` int(10),
+            `conf_select` int(10),
+            `date_custom` datetime,
+            `date_add` datetime,
+            `date_upd` datetime,
+            PRIMARY KEY  (`id_bootstrap`)
+        ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
+
+        // Lang table for multi language fields
+        $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.self::TABLE_NAME.'_lang` (
+            `'.self::PRIMARY_KEY.'` int(10) NOT NULL AUTO_INCREMENT,
+            `id_lang` int(10) NOT NULL,
+            `name` varchar(255),
+            `text` text,
+            PRIMARY KEY  (`id_bootstrap`, `id_lang`)
+        ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
+
+        // Group table for group association
+        $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_.self::TABLE_NAME.'_group` (
+            `'.self::PRIMARY_KEY.'` int(10) NOT NULL,
+            `id_group` int(10) UNSIGNED NOT NULL,
+            PRIMARY KEY (' . self::PRIMARY_KEY . ', `id_group`)
+        ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+
+        foreach ($sql as $query) {
+            if (!Db::getInstance()->execute($query)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Drop DB tables
+     *
+     * @return bool
+     */
+    public static function uninstallDb()
+    {
+        return Db::getInstance()->execute('DROP TABLE IF EXISTS `'._DB_PREFIX_.self::TABLE_NAME.'`;') &&
+            Db::getInstance()->execute('DROP TABLE IF EXISTS `'._DB_PREFIX_.self::TABLE_NAME.'_lang`;') &&
+            Db::getInstance()->execute('DROP TABLE IF EXISTS `'._DB_PREFIX_.self::TABLE_NAME.'_group`;');
     }
 }

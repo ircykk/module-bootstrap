@@ -26,6 +26,8 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+require_once dirname(__FILE__).'/classes/bootstrap.php';
+
 class Module_Bootstrap extends Module
 {
     protected $config_form = false;
@@ -70,7 +72,7 @@ class Module_Bootstrap extends Module
      * @see /upgrade/upgrade-x.x.x.php
      *
      * @return bool
-     * @throws PrestaShopException|Exception
+     * @throws Exception
      */
     public function install()
     {
@@ -81,40 +83,16 @@ class Module_Bootstrap extends Module
         Configuration::updateValue('MODULE_BOOTSTRAP_TEXT', '');
 
         /**
-         * Create DB tables.
+         * Create DB
          */
-        $sql = array();
-
-        $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'bootstrap` (
-            `id_bootstrap` int(10) NOT NULL AUTO_INCREMENT,
-            `active` int(1),
-            `position` int(10) default 0,
-            `date_add` datetime,
-            `date_upd` datetime,
-            PRIMARY KEY  (`id_bootstrap`)
-        ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
-
-        // Lang table for multi language fields
-        $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'bootstrap_lang` (
-            `id_bootstrap` int(10) NOT NULL AUTO_INCREMENT,
-            `id_lang` int(10) NOT NULL,
-            `name` varchar(255),
-            `text` text,
-            PRIMARY KEY  (`id_bootstrap`, `id_lang`)
-        ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
-
-        foreach ($sql as $query) {
-            if (Db::getInstance()->execute($query) == false) {
-                return false;
-            }
-        }
+        Bootstrap::installDb();
 
         /**
          * Add admin tab.
          *
          * Id 0 = Root: PS 1.6
          * Id 45 = Modules : PS 1.7
-         * 
+         *
          * @see Administration > Tabs
          */
         $this->installModuleTab(

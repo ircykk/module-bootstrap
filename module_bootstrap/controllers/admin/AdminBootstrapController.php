@@ -36,6 +36,8 @@ class AdminBootstrapController extends ModuleAdminController
      */
     protected $position_identifier = Bootstrap::PRIMARY_KEY;
 
+    protected $checkbox;
+
     /**
      * AdminBootstrapController constructor
      *
@@ -46,6 +48,12 @@ class AdminBootstrapController extends ModuleAdminController
         $this->table = 'bootstrap';
         $this->className = 'Bootstrap';
         $this->lang = true;
+
+        $this->checkbox = array(
+            array('id' => 1, 'name' => 'Name 1'),
+            array('id' => 2, 'name' => 'Name 2'),
+            array('id' => 4, 'name' => 'Name 3'),
+        );
 
         /**
          * Default order by postion on Objects list
@@ -128,7 +136,7 @@ class AdminBootstrapController extends ModuleAdminController
      *
      * @see    AdminController::renderForm()
      * @return string|bool
-     * @throws Exception|SmartyException
+     * @throws Exception
      */
     public function renderForm()
     {
@@ -141,6 +149,13 @@ class AdminBootstrapController extends ModuleAdminController
                 'title' => $this->l('Bootstrap object'),
                 'icon' => 'icon-gear'
             ),
+            /**
+             * Split form into tabs
+             */
+            'tabs' => array(
+                'main_tab' => $this->l('Main tab'),
+                'asso_tab' => $this->l('Association'),
+            ),
             'input' => array(
                 array(
                     'type' => 'text',
@@ -148,13 +163,61 @@ class AdminBootstrapController extends ModuleAdminController
                     'name' => 'name',
                     'required' => true,
                     'lang' => true,
+                    'tab' => 'main_tab',
                 ),
                 array(
                     'type' => 'textarea',
                     'label' => $this->l('Text'),
                     'name' => 'text',
-                    'required' => true,
                     'lang' => true,
+                    'tab' => 'main_tab',
+                ),
+                array(
+                    'type' => 'color',
+                    'label' => $this->l('Color'),
+                    'name' => 'color',
+                    'tab' => 'main_tab',
+                ),
+                array(
+                    'type' => 'checkbox',
+                    'label' => $this->l('Checkbox (flag)'),
+                    'name' => 'conf_checkbox',
+                    'values' => array(
+                        'query' => $this->checkbox,
+                        'id' => 'id',
+                        'name' => 'name',
+                    ),
+                    'col' => '2',
+                    'tab' => 'main_tab',
+                ),
+                array(
+                    'type' => 'select',
+                    'label' => $this->l('Select'),
+                    'name' => 'conf_select',
+                    'options' => array(
+                        'query' => array(
+                            array('id' => 1, 'name' => 'Name 1'),
+                            array('id' => 2, 'name' => 'Name 2'),
+                            array('id' => 3, 'name' => 'Name 3'),
+                        ),
+                        'id' => 'id',
+                        'name' => 'name',
+                    ),
+                    'col' => '2',
+                    'tab' => 'main_tab',
+                ),
+                array(
+                    'type' => 'date',
+                    'label' => $this->l('Date'),
+                    'name' => 'date_custom',
+                    'tab' => 'main_tab',
+                ),
+                array(
+                    'type' => 'group',
+                    'label' => $this->l('Group access'),
+                    'name' => 'groupBox',
+                    'values' => Group::getGroups(Context::getContext()->language->id),
+                    'tab' => 'asso_tab',
                 ),
             ),
             'submit' => array(
@@ -162,12 +225,61 @@ class AdminBootstrapController extends ModuleAdminController
             )
         );
 
+        /**
+         * Set groups access
+         */
+        $groupsIds = $obj->getGroups();
+        $groups = Group::getGroups($this->context->language->id);
+        $preselected = array(
+            Configuration::get('PS_UNIDENTIFIED_GROUP'),
+            Configuration::get('PS_GUEST_GROUP'),
+            Configuration::get('PS_CUSTOMER_GROUP')
+        );
+        foreach ($groups as $group) {
+            $this->fields_value['groupBox_'.$group['id_group']] = Tools::getValue(
+                'groupBox_'.$group['id_group'],
+                (in_array($group['id_group'], $groupsIds)
+                    || (empty($groupsIds) && in_array($group['id_group'], $preselected)))
+            );
+        }
+
+        /**
+         * Set checkbox
+         */
+        foreach ($this->checkbox as $checkbox) {
+            $this->fields_value['conf_checkbox_'.$checkbox['id']] = Tools::getValue(
+                'conf_checkbox_'.$checkbox['id'],
+                (($checkbox['id'] & $obj->conf_checkbox))
+            );
+        }
+
         return parent::renderForm();
     }
 
     /**
+     * @see AdminController::postProcess()
+     */
+    public function postProcess()
+    {
+        /**
+         * Set checkbox
+         */
+        if (Tools::getValue('submitAdd'.Bootstrap::TABLE_NAME)) {
+            $list = array();
+            foreach ($this->checkbox as $checkbox) {
+                if (Tools::getIsset('conf_checkbox_'.$checkbox['id'])) {
+                    $list[] += $checkbox['id'];
+                }
+            }
+            $_POST['conf_checkbox'] = array_sum($list);
+        }
+
+        return parent::postProcess();
+    }
+
+    /**
      * This method is needed to manage positions on Objects list by AJAX
-     * 
+     *
      * To have this working we also need a Object::updatePosition() method
      *
      * @return void
