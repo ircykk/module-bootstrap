@@ -32,12 +32,14 @@ class Bootstrap extends ObjectModel
 
     public $name;
     public $text;
+    public $text2;
     public $active = 1; // Default active
     public $position = 0; // Default 0
     public $color = '#ffffff'; // Default white
     public $conf_checkbox;
     public $conf_select;
     public $date_custom;
+    public $id_product;
     public $date_add;
     public $date_upd;
 
@@ -60,6 +62,11 @@ class Bootstrap extends ObjectModel
                 'required' => true,
             ),
             'text' => array(
+                'type' => self::TYPE_HTML,
+                'lang' => true,
+                'validate' => 'isCleanHtml',
+            ),
+            'text2' => array(
                 'type' => self::TYPE_HTML,
                 'lang' => true,
                 'validate' => 'isCleanHtml',
@@ -89,6 +96,10 @@ class Bootstrap extends ObjectModel
             'date_custom' => array(
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
+            ),
+            'id_product' => array(
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedInt',
             ),
             'date_add' => array(
                 'type' => self::TYPE_DATE,
@@ -151,6 +162,11 @@ class Bootstrap extends ObjectModel
          * Important : after Object delete
          */
         $this->cleanPositions();
+
+        /**
+         * Delete image
+         */
+        $this->deleteImage();
 
         return $res;
     }
@@ -295,6 +311,19 @@ class Bootstrap extends ObjectModel
     }
 
     /**
+     * Delete image
+     *
+     * @see AdminController::processDeleteImage()
+     *
+     * @param bool $force_delete
+     * @return bool
+     */
+    public function deleteImage($force_delete = false)
+    {
+        return @unlink(__DIR__.'/../uploads/'.$this->id.'.jpg');
+    }
+
+    /**
      * Install DB tables
      *
      * @return bool
@@ -311,6 +340,7 @@ class Bootstrap extends ObjectModel
             `conf_checkbox` int(10),
             `conf_select` int(10),
             `date_custom` datetime,
+            `id_product` int(10),
             `date_add` datetime,
             `date_upd` datetime,
             PRIMARY KEY  (`id_bootstrap`)
@@ -318,10 +348,11 @@ class Bootstrap extends ObjectModel
 
         // Lang table for multi language fields
         $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.self::TABLE_NAME.'_lang` (
-            `'.self::PRIMARY_KEY.'` int(10) NOT NULL AUTO_INCREMENT,
+            `'.self::PRIMARY_KEY.'` int(10) NOT NULL,
             `id_lang` int(10) NOT NULL,
             `name` varchar(255),
             `text` text,
+            `text2` text,
             PRIMARY KEY  (`id_bootstrap`, `id_lang`)
         ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
 

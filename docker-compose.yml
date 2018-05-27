@@ -12,8 +12,6 @@ services:
        MYSQL_USER: ps
        MYSQL_PASSWORD: ps
      command: mysqld --sql_mode=""
-     ports:
-       - 3306:3306
 
    phpmyadmin_module_bootstrap:
       image: phpmyadmin/phpmyadmin

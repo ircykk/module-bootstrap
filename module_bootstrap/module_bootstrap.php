@@ -26,7 +26,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-require_once dirname(__FILE__).'/classes/bootstrap.php';
+require_once __DIR__.'/classes/bootstrap.php';
 
 class Module_Bootstrap extends Module
 {
@@ -90,16 +90,12 @@ class Module_Bootstrap extends Module
         /**
          * Add admin tab.
          *
-         * Id 0 = Root: PS 1.6
-         * Id 45 = Modules : PS 1.7
-         *
          * @see Administration > Tabs
          */
         $this->installModuleTab(
             'AdminBootstrap',
             array((int)Configuration::get('PS_LANG_DEFAULT') => 'Bootstrap'),
-            (version_compare(_PS_VERSION_, '1.7') ? 43 : 0),
-            1
+            'AdminParentModulesSf' // Modules parent tab
         );
 
         return parent::install() &&
@@ -127,7 +123,7 @@ class Module_Bootstrap extends Module
         $sql[] = 'DROP TABLE IF EXISTS `'._DB_PREFIX_.'bootstrap_lang`';
 
         foreach ($sql as $query) {
-            if (Db::getInstance()->execute($query) == false) {
+            if (!Db::getInstance()->execute($query)) {
                 return false;
             }
         }
@@ -143,20 +139,20 @@ class Module_Bootstrap extends Module
     /**
      * Add new admin tab.
      *
-     * @param string $tabClass    Tab class name
-     * @param array  $tabName     Tab names list
-     * @param int    $idTabParent Id parent tab
-     * @param int    $active      Status
+     * @param string $tabClass          Tab class name
+     * @param array  $tabName           Tab names list
+     * @param int    $parentTabClass    Id parent tab
+     * @param int    $active            Status
      *
      * @return bool|int
      */
-    public function installModuleTab($tabClass, $tabName, $idTabParent, $active = 1)
+    public function installModuleTab($tabClass, $tabName, $parentTabClass, $active = 1)
     {
         $tab = new Tab();
         $tab->name = $tabName;
         $tab->class_name = $tabClass;
         $tab->module = $this->name;
-        $tab->id_parent = $idTabParent;
+        $tab->id_parent = Tab::getIdFromClassName($parentTabClass);
         $tab->active = $active;
 
         if (!$tab->add()) {
@@ -197,7 +193,7 @@ class Module_Bootstrap extends Module
         /**
          * If values have been submitted in the form, process.
          */
-        if (((bool)Tools::isSubmit('submitBootstrapModule')) == true) {
+        if (Tools::isSubmit('submitBootstrapModule')) {
             $this->postProcess();
         }
 

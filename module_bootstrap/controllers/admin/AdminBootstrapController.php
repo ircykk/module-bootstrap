@@ -23,7 +23,7 @@
  */
 
 // Include class manually if we want to use it
-require_once dirname(__FILE__).'/../../classes/bootstrap.php';
+require_once __DIR__.'/../../classes/bootstrap.php';
 
 class AdminBootstrapController extends ModuleAdminController
 {
@@ -56,7 +56,15 @@ class AdminBootstrapController extends ModuleAdminController
         );
 
         /**
-         * Default order by postion on Objects list
+         * Important for image upload
+         */
+        $this->fieldImageSettings = array(
+            'name' => 'img',
+            'dir' => '../modules/module_bootstrap/uploads'
+        );
+
+        /**
+         * Default order by position on Objects list
          */
         $this->_defaultOrderBy = 'position';
 
@@ -111,6 +119,23 @@ class AdminBootstrapController extends ModuleAdminController
     }
 
     /**
+     * Set extra CSS and JS.
+     *
+     * @see AdminController::setMedia()
+     */
+    public function setMedia()
+    {
+        /**
+         * Load (bit old) autocomplete jQuery plugin
+         */
+        $this->context->controller->addJqueryPlugin(array('autocomplete'));
+
+        $this->context->controller->addJS($this->path.'/views/js/back.js');
+
+        return parent::setMedia();
+    }
+
+    /**
      * Init header
      *
      * @see    AdminController::initPageHeaderToolbar()
@@ -144,6 +169,20 @@ class AdminBootstrapController extends ModuleAdminController
             return;
         }
 
+        /**
+         * Image upload
+         */
+        $image = __DIR__.'/../../uploads/'.$obj->id.'.jpg';
+        $image_url = ImageManager::thumbnail(
+            $image,
+            $this->table.'_'.(int)$obj->id.'.'.$this->imageType,
+            150,
+            $this->imageType,
+            true,
+            true
+        );
+        $image_size = file_exists($image) ? filesize($image) / 1000 : false;
+
         $this->fields_form = array(
             'legend' => array(
                 'title' => $this->l('Bootstrap object'),
@@ -155,6 +194,7 @@ class AdminBootstrapController extends ModuleAdminController
             'tabs' => array(
                 'main_tab' => $this->l('Main tab'),
                 'asso_tab' => $this->l('Association'),
+                'upload_tab' => $this->l('Upload'),
             ),
             'input' => array(
                 array(
@@ -170,6 +210,14 @@ class AdminBootstrapController extends ModuleAdminController
                     'label' => $this->l('Text'),
                     'name' => 'text',
                     'lang' => true,
+                    'tab' => 'main_tab',
+                ),
+                array(
+                    'type' => 'textarea',
+                    'label' => $this->l('Text with editor'),
+                    'name' => 'text2',
+                    'lang' => true,
+                    'autoload_rte' => true,
                     'tab' => 'main_tab',
                 ),
                 array(
@@ -207,6 +255,14 @@ class AdminBootstrapController extends ModuleAdminController
                     'tab' => 'main_tab',
                 ),
                 array(
+                    'type' => 'text',
+                    'label' => $this->l('ID product with auto-complete'),
+                    'name' => 'product_name',
+                    'tab' => 'main_tab',
+                    'desc' => $this->l('Start typing...'),
+                    'class' => 'ac_input_class',
+                ),
+                array(
                     'type' => 'date',
                     'label' => $this->l('Date'),
                     'name' => 'date_custom',
@@ -218,6 +274,17 @@ class AdminBootstrapController extends ModuleAdminController
                     'name' => 'groupBox',
                     'values' => Group::getGroups(Context::getContext()->language->id),
                     'tab' => 'asso_tab',
+                ),
+                array(
+                    'type' => 'file',
+                    'label' => $this->l('Image'),
+                    'name' => 'img',
+                    'display_image' => true,
+                    'image' => $image_url ? $image_url : false,
+                    'size' => $image_size,
+                    'delete_url' => self::$currentIndex.'&'.$this->identifier.'='.$obj->id
+                        .'&token='.$this->token.'&deleteImage=1',
+                    'tab' => 'upload_tab',
                 ),
             ),
             'submit' => array(
@@ -310,12 +377,53 @@ class AdminBootstrapController extends ModuleAdminController
                         echo '{"hasError" : true, "errors" : "Can not update the '.(int)$id.' object to position '.(int)$position.' "}';
                     }
                 } else {
-                    echo '{"hasError" : true, "errors" : "The ('.(int)$id.') object cannot be loaded."}';
+                    echo '{"hasError" : true, "errors" : "The ('.$id.') object cannot be loaded."}';
                 }
 
                 break;
             }
         }
+    }
+
+    /**
+     * Get products list by name for ajax auto-complete
+     *
+     * @throws PrestaShopDatabaseException
+     */
+    public function ajaxProcessGetAutocompleteProducts()
+    {
+        $query = Tools::getValue('q', false);
+        if (!$query or $query === '' || strlen($query) < 2) {
+            die();
+        }
+
+        $sql = 'SELECT p.`id_product`, p.`reference`, pl.`name`
+		FROM `'._DB_PREFIX_.'product` p
+		'.Shop::addSqlAssociation('product', 'p').'
+		LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (pl.id_product = p.id_product 
+		    AND pl.id_lang = '.(int)$this->context->language->id.
+            Shop::addSqlRestrictionOnLang('pl').'
+        )
+        WHERE pl.`name` LIKE "%'.pSQL($query).'%" 
+        OR p.`reference` LIKE "%'.pSQL($query).'%" 
+        OR p.`id_product` LIKE "%'.pSQL($query).'%"
+		GROUP BY p.id_product';
+
+        $products = Db::getInstance()->executeS($sql);
+
+        $results = array();
+        foreach ($products as $product) {
+            $results[] = '['.$product['reference'].'] '.$product['name'].'|'.$product['id_product'];
+        }
+
+        /**
+         * Result:
+         *
+         * Product|ID
+         * Next Product|ID
+         * ...
+         */
+        die(implode(PHP_EOL, $results));
     }
 
     /**

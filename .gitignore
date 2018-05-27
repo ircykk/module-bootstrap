@@ -1,2 +1,4 @@
 module_bootstrap/templates_c
+module_bootstrap/uploads/*
 .idea/
+!index.php
