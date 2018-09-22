@@ -263,6 +263,17 @@ class AdminBootstrapController extends ModuleAdminController
                     'class' => 'ac_input_class',
                 ),
                 array(
+                    'type' => 'html',
+                    'label' => $this->l('Products with auto-complete'),
+                    'name' => 'products',
+                    'html_content' => $this->context->smarty->assign(
+                            array('products' => $this->getSelectedProducts())
+                        )->fetch(
+                            __DIR__.'/../../views/templates/admin/bootstrap/products_autocomplete.tpl' // @todo
+                    ),
+                    'tab' => 'main_tab',
+                ),
+                array(
                     'type' => 'date',
                     'label' => $this->l('Date'),
                     'name' => 'date_custom',
@@ -339,9 +350,41 @@ class AdminBootstrapController extends ModuleAdminController
                 }
             }
             $_POST['conf_checkbox'] = array_sum($list);
+
+            /**
+             * Products
+             */
+            if (($products = Tools::getValue('products'))) {
+                $_POST['products'] = implode('|', $products);
+            }
         }
 
         return parent::postProcess();
+    }
+
+    /**
+     * Get product data for auto-complete
+     *
+     * @return array|false
+     * @throws Exception
+     */
+    public function getSelectedProducts()
+    {
+        if (!empty($this->object->products)) {
+            $productsIds = explode('|', $this->object->products);
+            $sql = 'SELECT p.`id_product`, p.`reference`, pl.`name`
+				FROM `' . _DB_PREFIX_ . 'product` p
+				' . Shop::addSqlAssociation('product', 'p') . '
+				LEFT JOIN `' . _DB_PREFIX_ . 'product_lang` pl 
+				    ON (p.`id_product` = pl.`id_product` ' . Shop::addSqlRestrictionOnLang('pl') . ')
+				WHERE pl.`id_lang` = ' . (int)$this->context->language->id . '
+				AND p.`id_product` IN (' . implode(',', $productsIds) . ')
+				ORDER BY FIELD(p.`id_product`, '.implode(',', $productsIds).')';
+
+            return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+        }
+
+        return array();
     }
 
     /**

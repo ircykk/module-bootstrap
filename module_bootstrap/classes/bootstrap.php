@@ -40,6 +40,7 @@ class Bootstrap extends ObjectModel
     public $conf_select;
     public $date_custom;
     public $id_product;
+    public $products;
     public $date_add;
     public $date_upd;
 
@@ -95,11 +96,15 @@ class Bootstrap extends ObjectModel
             ),
             'date_custom' => array(
                 'type' => self::TYPE_DATE,
-                'validate' => 'isDate',
+                'validate' => 'isDateFormat',
             ),
             'id_product' => array(
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedInt',
+            ),
+            'products' => array(
+                'type' => self::TYPE_STRING,
+                'validate' => 'isGenericName',
             ),
             'date_add' => array(
                 'type' => self::TYPE_DATE,
@@ -341,9 +346,10 @@ class Bootstrap extends ObjectModel
             `conf_select` int(10),
             `date_custom` datetime,
             `id_product` int(10),
+            `products` text,
             `date_add` datetime,
             `date_upd` datetime,
-            PRIMARY KEY  (`id_bootstrap`)
+            PRIMARY KEY  (`'.self::PRIMARY_KEY.'`)
         ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
 
         // Lang table for multi language fields
@@ -353,7 +359,7 @@ class Bootstrap extends ObjectModel
             `name` varchar(255),
             `text` text,
             `text2` text,
-            PRIMARY KEY  (`id_bootstrap`, `id_lang`)
+            PRIMARY KEY  (`'.self::PRIMARY_KEY.'`, `id_lang`)
         ) ENGINE='._MYSQL_ENGINE_.' DEFAULT CHARSET=utf8;';
 
         // Group table for group association
